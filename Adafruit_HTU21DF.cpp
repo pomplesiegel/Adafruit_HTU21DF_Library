@@ -14,85 +14,125 @@
   BSD license, all text above must be included in any redistribution
  ****************************************************/
 
-#include "Adafruit_HTU21DF.h"
-#if defined(__AVR__)
-#include <util/delay.h>
-#endif
+/*************************************************** 
+  Adapted by Michael Siegel @pomplesiegel on 9/15/2015 for 
+  use on Particle (Spark) Core and Photon
+****************************************************/
 
-Adafruit_HTU21DF::Adafruit_HTU21DF() {
+#include "Adafruit_HTU21DF.h"
+
+//empty constructor
+Adafruit_HTU21DF::Adafruit_HTU21DF() 
+{
 }
 
-
-boolean Adafruit_HTU21DF::begin(void) {
-  Wire.begin();
+//sends initialization signal to HTU21D-F IC
+//Returns back true if it receives the expected response from the IC
+//Wire.begin() must be called before this
+bool Adafruit_HTU21DF::reset() 
+{  
+  //Send reset signal to IC
+  Wire.beginTransmission(HTU21DF_I2CADDR);
+  Wire.write(HTU21DF_RESET);
+  Wire.endTransmission();
   
-  reset();
+  //Delay to allow reset to digest
+  delay(15);
 
+  //Read from IC's register to see current state
   Wire.beginTransmission(HTU21DF_I2CADDR);
   Wire.write(HTU21DF_READREG);
   Wire.endTransmission();
   Wire.requestFrom(HTU21DF_I2CADDR, 1);
-  return (Wire.read() == 0x2); // after reset should be 0x2
+
+  //Store the IC's register state
+  uint8_t returnValue = Wire.read(); 
+
+  if(returnValue != 0x2)
+  {
+    // after reset should be 0x2
+    Serial.println("HTU21DF: reset() return wrong: " + String(returnValue, HEX) );
+    return false;
+  }
+  return true; //otherwise, we're ok
 }
 
-void Adafruit_HTU21DF::reset(void) {
-  Wire.beginTransmission(HTU21DF_I2CADDR);
-  Wire.write(HTU21DF_RESET);
-  Wire.endTransmission();
-  delay(15);
-}
-
-
-float Adafruit_HTU21DF::readTemperature(void) {
-  
-  // OK lets ready!
+//Reads temperature from the IC
+float Adafruit_HTU21DF::readTemperature() 
+{
+  //Begin transmission to IC
   Wire.beginTransmission(HTU21DF_I2CADDR);
   Wire.write(HTU21DF_READTEMP);
   Wire.endTransmission();
   
-  delay(50); // add delay between request and actual read!
+  // delay(50); // possible delay
   
   Wire.requestFrom(HTU21DF_I2CADDR, 3);
-  while (!Wire.available()) {}
+
+  //clear our counter
+  numCommAttempts = 1;
+
+  //to see if we're waiting.
+  while ( !Wire.available() && numCommAttempts < 5 ) 
+  {
+    delay(10);
+    Serial.println("Temp still not available...");
+    numCommAttempts++; //increment counter
+  }
 
   uint16_t t = Wire.read();
   t <<= 8;
   t |= Wire.read();
 
-  uint8_t crc = Wire.read();
+  //Unused CRC
+  Wire.read();
 
-  float temp = t;
-  temp *= 175.72;
-  temp /= 65536;
-  temp -= 46.85;
+  //assign to float for manipulation
+  temperature = t;
 
-  return temp;
+  // (t * 175.72 / 65536) - 46.85
+  temperature = (temperature * 0.00268127441406) - 46.85; 
+
+  return temperature;
 }
   
-
-float Adafruit_HTU21DF::readHumidity(void) {
-  // OK lets ready!
+//Reads humidity from the IC
+float Adafruit_HTU21DF::readHumidity() 
+{
+  //Begin transmission to IC
   Wire.beginTransmission(HTU21DF_I2CADDR);
   Wire.write(HTU21DF_READHUM);
   Wire.endTransmission();
   
-  delay(50); // add delay between request and actual read!
+  // delay(50); // possible delay
   
   Wire.requestFrom(HTU21DF_I2CADDR, 3);
-  while (!Wire.available()) {}
+
+  //clear our counter
+  numCommAttempts = 1;
+
+  //to see if we're waiting.
+  while ( !Wire.available() && numCommAttempts < 5 ) 
+  {
+    delay(10);
+    Serial.println("Humidity still not available...");
+    numCommAttempts++; //increment counter
+  }
 
   uint16_t h = Wire.read();
   h <<= 8;
   h |= Wire.read();
 
-  uint8_t crc = Wire.read();
+  //Unused CRC
+  Wire.read();
 
-  float hum = h;
-  hum *= 125;
-  hum /= 65536;
-  hum -= 6;
+  //assign to float for manipulation
+  humidity = h;
 
-  return hum;
+  // (h * 125 / 65536) - 6
+  humidity = (humidity * 0.00190734863281) - 6; 
+
+  return humidity;
 }
 
 

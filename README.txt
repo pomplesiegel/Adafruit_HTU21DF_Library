@@ -1,3 +1,7 @@
+#### Improved driver for Particle Core + Photon    
+
+Adafruit's text:    
+
 This is a library for the HTU21D-F Humidity + Temp sensor
 
 Designed specifically to work with the HTU21D-F in the Adafruit shop 

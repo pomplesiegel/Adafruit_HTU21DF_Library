@@ -14,12 +14,12 @@
   BSD license, all text above must be included in any redistribution
  ****************************************************/
 
-#if (ARDUINO >= 100)
- #include "Arduino.h"
-#else
- #include "WProgram.h"
-#endif
-#include "Wire.h"
+/*************************************************** 
+  Adapted by Michael Siegel @pomplesiegel on 9/15/2015 for 
+  use on Particle (Spark) Core and Photon
+****************************************************/
+
+#include "application.h"
 
 #define HTU21DF_I2CADDR       0x40
 #define HTU21DF_READTEMP      0xE3
@@ -28,17 +28,29 @@
 #define HTU21DF_READREG       0xE7
 #define HTU21DF_RESET       0xFE
 
-
-
-class Adafruit_HTU21DF {
+class Adafruit_HTU21DF 
+{
  public:
+
+  //constructor
   Adafruit_HTU21DF();
-  boolean begin(void);
-  float readTemperature(void);
-  float readHumidity(void);
-  void reset(void);
- private:
-  boolean readData(void);
-  float humidity, temp;
+
+  //sends initialization signal to HTU21D-F IC
+  //Returns back true if it receives the expected response from the IC
+  //Wire.begin() must be called before this
+  bool reset();
+
+  //Reads temperature from the IC
+  float readTemperature();
+
+  //Reads humidity from the IC
+  float readHumidity();
+
+ protected:
+  //Represents the most recent humidity and temperature taken
+  float humidity, temperature;
+
+  //Number of consecutive times we've tried to read from this IC
+  int numCommAttempts; 
 };
 
